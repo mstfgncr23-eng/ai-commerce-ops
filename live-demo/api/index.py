@@ -3,6 +3,7 @@ from __future__ import annotations
 import html
 import json
 import os
+import re
 import time
 import uuid
 from typing import Literal
@@ -10,9 +11,9 @@ from typing import Literal
 import httpx
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
-app = FastAPI(title="AI Commerce Ops Live Demo", version="1.1.0")
+app = FastAPI(title="AI Commerce Ops Live Demo", version="1.2.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -68,6 +69,16 @@ class Enrichment(BaseModel):
     normalized_description: str = Field(min_length=30, max_length=500)
     risk_score: int = Field(ge=0, le=100)
     risk_flags: list[str] = Field(default_factory=list, max_length=6)
+
+    @field_validator("seo_description")
+    @classmethod
+    def clean_seo_description(cls, value: str) -> str:
+        """Keep portfolio output polished even if the model emits a dangling token."""
+        value = " ".join(value.split()).strip()
+        value = re.sub(r"\s+[A-Za-z]\d{1,3}$", "", value).rstrip(" ,;:")
+        if value and value[-1] not in ".!?":
+            value += "."
+        return value
 
 
 class TraceItem(BaseModel):
@@ -152,10 +163,11 @@ Product input:
 
 Tasks:
 1. Classify the product into a concise e-commerce category.
-2. Produce a factual SEO title and SEO description. Do not invent certifications, approvals, clinical outcomes, warranties, or specifications.
-3. Normalize the supplier description into professional product copy.
-4. Assign a 0-100 operational/compliance risk score and short risk flags.
-5. Treat diagnostic, therapeutic, regulated-device, prescription, or unsupported medical claims as higher risk.
+2. Produce a factual SEO title and SEO description. Do not invent certifications, approvals, clinical outcomes, warranties, model numbers, reference codes, or specifications.
+3. Keep the SEO description between roughly 120 and 155 characters when possible. It must be a complete natural sentence with clean punctuation and no dangling tokens or fragments.
+4. Normalize the supplier description into professional product copy.
+5. Assign a 0-100 operational/compliance risk score and short risk flags.
+6. Treat diagnostic, therapeutic, regulated-device, prescription, or unsupported medical claims as higher risk.
 
 This is product-content triage, not medical advice.
 """.strip()
