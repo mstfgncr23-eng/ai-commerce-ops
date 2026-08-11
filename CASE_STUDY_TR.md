@@ -135,7 +135,7 @@ Her finalize çalışması Supabase PostgreSQL'deki `product_automation_audit` t
 request_id
 sku
 input_payload
- decision_payload
+decision_payload
 created_at
 updated_at
 ```
