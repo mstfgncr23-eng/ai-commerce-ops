@@ -1,0 +1,9 @@
+{
+  "sku": "MED-2049",
+  "name": "Kontrol Gerektiren Ürün",
+  "category_hint": "Medikal sarf malzeme",
+  "stock": 0,
+  "language": "tr",
+  "image_ok": false,
+  "source": "supplier_form"
+}

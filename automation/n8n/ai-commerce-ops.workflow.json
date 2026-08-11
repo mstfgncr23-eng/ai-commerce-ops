@@ -1,0 +1,178 @@
+{
+  "name": "AI Commerce Ops — Product Intake",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "product-intake",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "96d1828e-4d45-4f18-a42b-f267e4fb2731",
+      "name": "Product Intake Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [-760, 20],
+      "webhookId": "2fed0776-1058-41b8-906b-83e204bf9aa3"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://api:8000/enrich",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify($json.body ?? $json) }}",
+        "options": {"timeout": 30000}
+      },
+      "id": "5eab4ec8-6652-4e90-947a-ef150db4f2cc",
+      "name": "LangChain Enrichment API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-500, 20],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1500
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2},
+          "conditions": [{"id": "25e4635c-7753-4f22-99f2-e7c7a93e837c", "leftValue": "={{ $json.approval_required }}", "rightValue": true, "operator": {"type": "boolean", "operation": "true", "singleValue": true}}],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "aa110bff-5e19-46e1-acad-eaa942891a7a",
+      "name": "Human Approval Needed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-220, 20]
+    },
+    {
+      "parameters": {"assignments": {"assignments": [
+        {"id": "ac57bb5b-c359-4201-a201-124054701fd7", "name": "workflow_status", "value": "pending_human_approval", "type": "string"},
+        {"id": "db07eaba-8a61-4408-bfa8-03075ce4464c", "name": "review_channel", "value": "slack_or_email", "type": "string"},
+        {"id": "d3a9eea2-209a-42e8-8e06-04a275302f7e", "name": "decision", "value": "={{ $json }}", "type": "object"}
+      ]}, "options": {}},
+      "id": "d8838422-2572-42e0-92a5-e7db24f3a9b3",
+      "name": "Queue Human Review",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [80, -100]
+    },
+    {
+      "parameters": {"assignments": {"assignments": [
+        {"id": "d550880a-a55e-43e6-ab91-e35bb8be6373", "name": "workflow_status", "value": "ready_for_shopify_draft", "type": "string"},
+        {"id": "07138c16-d4df-49fc-bc4c-bbeb6d27b222", "name": "shopify_mode", "value": "draft_only", "type": "string"},
+        {"id": "b52a357a-308a-410b-ab2e-794ffab09ec9", "name": "decision", "value": "={{ $json }}", "type": "object"},
+        {"id": "41459a12-518c-40de-81c9-b07c17fd0c01", "name": "shopify_product", "value": "={{ { title: $json.seo_title, descriptionHtml: '<p>' + $json.seo_description + '</p>', vendor: 'AI Commerce Ops', productType: $json.category, status: 'DRAFT', tags: ['ai-commerce-ops', 'n8n', 'langchain', $json.sku], seo: { title: $json.seo_title, description: $json.seo_description } } }}", "type": "object"}
+      ]}, "options": {}},
+      "id": "75059113-324a-42f4-a0b4-0d0602ea4e46",
+      "name": "Prepare Shopify Draft",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [80, 180]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://' + $env.SHOPIFY_SHOP + '/admin/oauth/access_token' }}",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/x-www-form-urlencoded",
+        "body": "={{ 'grant_type=client_credentials&client_id=' + encodeURIComponent($env.SHOPIFY_CLIENT_ID) + '&client_secret=' + encodeURIComponent($env.SHOPIFY_CLIENT_SECRET) }}",
+        "options": {"timeout": 15000}
+      },
+      "id": "26f116e3-5d73-4cb6-b67e-79b92b642726",
+      "name": "Get Shopify Access Token",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [360, 180],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1500
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://' + $env.SHOPIFY_SHOP + '/admin/api/' + ($env.SHOPIFY_API_VERSION || '2026-07') + '/graphql.json' }}",
+        "sendHeaders": true,
+        "headerParameters": {"parameters": [
+          {"name": "Content-Type", "value": "application/json"},
+          {"name": "X-Shopify-Access-Token", "value": "={{ $json.access_token }}"}
+        ]},
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ query: 'mutation CreateProduct($product: ProductCreateInput!) { productCreate(product: $product) { product { id title status handle vendor productType } userErrors { field message } } }', variables: { product: $node[\"Prepare Shopify Draft\"].json[\"shopify_product\"] } }) }}",
+        "options": {"timeout": 20000}
+      },
+      "id": "a2489861-bee5-4227-bb9a-084af4bfa612",
+      "name": "Create Shopify Draft Product",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [650, 180],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1500
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2},
+          "conditions": [{"id": "156292a2-5449-4a4f-889a-acb3e0b2765b", "leftValue": "={{ Boolean($json.errors?.length || $json.data?.productCreate?.userErrors?.length) }}", "rightValue": true, "operator": {"type": "boolean", "operation": "true", "singleValue": true}}],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "680b4be9-a4d3-4d41-a380-5d41af753673",
+      "name": "Shopify API Error?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [940, 180]
+    },
+    {
+      "parameters": {"assignments": {"assignments": [
+        {"id": "a3d935ee-38fe-4d42-a0bb-f27715d67300", "name": "workflow_status", "value": "shopify_api_failed", "type": "string"},
+        {"id": "a6cba207-c63e-4d10-80b8-3b87144d09b3", "name": "request_id", "value": "={{ $node[\"Prepare Shopify Draft\"].json[\"decision\"][\"request_id\"] }}", "type": "string"},
+        {"id": "04955afe-5f92-4c42-b90f-f8f01ed7479a", "name": "shopify_errors", "value": "={{ $json.errors ?? $json.data?.productCreate?.userErrors ?? [] }}", "type": "array"}
+      ]}, "options": {}},
+      "id": "9804f1e6-8146-48e1-a9e1-f767f906b2a7",
+      "name": "Shopify API Failed",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1230, 60]
+    },
+    {
+      "parameters": {"assignments": {"assignments": [
+        {"id": "4620e56d-28e5-479b-b028-95534da4a50d", "name": "workflow_status", "value": "shopify_draft_created", "type": "string"},
+        {"id": "e01235dc-4fa2-4589-9d5d-cb5e06439850", "name": "request_id", "value": "={{ $node[\"Prepare Shopify Draft\"].json[\"decision\"][\"request_id\"] }}", "type": "string"},
+        {"id": "7481bafb-8b3e-4e0f-af48-cc5e1effa1c8", "name": "shopify_product_id", "value": "={{ $json.data.productCreate.product.id }}", "type": "string"},
+        {"id": "f046312c-8200-4c5e-b185-07ce44e47376", "name": "shopify_title", "value": "={{ $json.data.productCreate.product.title }}", "type": "string"},
+        {"id": "025beeb0-c419-46a7-b22d-d61d5376e4ce", "name": "shopify_status", "value": "={{ $json.data.productCreate.product.status }}", "type": "string"},
+        {"id": "0b9e3c59-1183-42e2-9854-5c52157849f9", "name": "shopify_handle", "value": "={{ $json.data.productCreate.product.handle }}", "type": "string"}
+      ]}, "options": {}},
+      "id": "1bcfc5b4-5d21-4aa6-84f9-2fb61ae05ddd",
+      "name": "Shopify Draft Created",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1230, 300]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Product Intake Webhook": {"main": [[{"node": "LangChain Enrichment API", "type": "main", "index": 0}]]},
+    "LangChain Enrichment API": {"main": [[{"node": "Human Approval Needed?", "type": "main", "index": 0}]]},
+    "Human Approval Needed?": {"main": [[{"node": "Queue Human Review", "type": "main", "index": 0}], [{"node": "Prepare Shopify Draft", "type": "main", "index": 0}]]},
+    "Prepare Shopify Draft": {"main": [[{"node": "Get Shopify Access Token", "type": "main", "index": 0}]]},
+    "Get Shopify Access Token": {"main": [[{"node": "Create Shopify Draft Product", "type": "main", "index": 0}]]},
+    "Create Shopify Draft Product": {"main": [[{"node": "Shopify API Error?", "type": "main", "index": 0}]]},
+    "Shopify API Error?": {"main": [[{"node": "Shopify API Failed", "type": "main", "index": 0}], [{"node": "Shopify Draft Created", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1", "saveManualExecutions": true, "saveExecutionProgress": true},
+  "versionId": "6559adb1-53df-4e1f-a411-836c78c61014",
+  "meta": {"templateCredsSetupCompleted": false},
+  "tags": []
+}

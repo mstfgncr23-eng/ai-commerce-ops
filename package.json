@@ -1,0 +1,25 @@
+{
+  "name": "ai-commerce-workflow-showcase",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A Turkish Remotion portfolio video demonstrating an end-to-end n8n and LangChain commerce automation.",
+  "scripts": {
+    "start": "remotion studio --no-open",
+    "check": "tsc --noEmit",
+    "still": "remotion still AiCommerceWorkflow out/preview.png --frame=130",
+    "render": "remotion render AiCommerceWorkflow out/ai-commerce-workflow.mp4"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.507",
+    "@remotion/transitions": "4.0.507",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "remotion": "4.0.507"
+  },
+  "devDependencies": {
+    "@sparticuz/chromium": "^149.0.0",
+    "@types/react": "19.2.7",
+    "@types/react-dom": "19.2.3",
+    "typescript": "5.9.2"
+  }
+}

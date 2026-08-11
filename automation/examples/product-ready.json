@@ -1,0 +1,9 @@
+{
+  "sku": "MED-2048",
+  "name": "Steril Prosedür Seti",
+  "category_hint": "Medikal sarf malzeme",
+  "stock": 84,
+  "language": "tr",
+  "image_ok": true,
+  "source": "supplier_form"
+}
