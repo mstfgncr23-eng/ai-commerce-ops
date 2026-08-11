@@ -1,6 +1,14 @@
+import os
 from pathlib import Path
 
 from fastapi.responses import HTMLResponse
+
+
+# Guard against a duplicated value from bulk .env import in Vercel.
+# The official API model ID is exactly `gpt-5.6-luna`.
+model_value = os.getenv("OPENAI_MODEL", "").strip()
+if model_value and model_value != "gpt-5.6-luna" and model_value.replace("gpt-5.6-luna", "") == "":
+    os.environ["OPENAI_MODEL"] = "gpt-5.6-luna"
 
 from api.index import app, health, run_demo, RunRequest
 
