@@ -1,0 +1,167 @@
+{
+  "name": "AI Commerce Ops — Cloud Orchestrator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ai-commerce-ops",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "1d9d3dcb-2b51-4cff-b0e8-2785f3100b95",
+      "name": "Public Demo Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [-620, 0],
+      "webhookId": "d9f5c7b1-02f7-48a4-82d7-88f5e7c53735"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ai-commerce-ops-demo.vercel.app/api/n8n/enrich",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify($json.body ?? $json) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "76940be3-3d56-4c87-85d1-1fb14a77df36",
+      "name": "LangChain Enrichment API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-350, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1500
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b2a18409-7173-4ff1-8443-98dbe3c65a57",
+              "leftValue": "={{ $json.approval_required }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "1bc34118-ed69-45bb-ac9a-43607a14a7d0",
+      "name": "Human Approval Needed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-80, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ai-commerce-ops-demo.vercel.app/api/n8n/finalize",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "6150aa9c-ed5a-4548-9bb6-cf8c12e9452b",
+      "name": "Finalize Human Review",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [210, -120],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1500
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ai-commerce-ops-demo.vercel.app/api/n8n/finalize",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "5344ca93-81a3-43e6-9a26-3652a2b61223",
+      "name": "Finalize Commerce Draft",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [210, 120],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1500
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Public Demo Webhook": {
+      "main": [
+        [
+          {
+            "node": "LangChain Enrichment API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LangChain Enrichment API": {
+      "main": [
+        [
+          {
+            "node": "Human Approval Needed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Human Approval Needed?": {
+      "main": [
+        [
+          {
+            "node": "Finalize Human Review",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Finalize Commerce Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true
+  },
+  "versionId": "22d0d7cd-c4ed-4fbb-a50e-d794395ab594",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": []
+}
