@@ -36,3 +36,5 @@ N8N_WEBHOOK_URL
 ```
 
 Without `N8N_WEBHOOK_URL`, `/api/run` executes the same stages directly so the deployment can be verified before n8n Cloud is connected. The UI reports the orchestrator mode instead of pretending n8n ran.
+
+Deployment trigger: production branch connected to Vercel.
